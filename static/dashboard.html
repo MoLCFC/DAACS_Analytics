@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DAACS Analytics Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/modern-normalize/2.0.0/modern-normalize.min.css" integrity="sha512-4xo8blKMVCiXpTaLzQSLSw3KFOVPWhm/TRtuPVc4WG6kUgjH6J03IBuG7JZPkcWMxJ5huwaBpOpnwYElP/m6wg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="/static/charts.js"></script>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f6f8;
+            color: #1f2933;
+            padding: 30px;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: #edf7ed;
+            color: #2f8132;
+            font-weight: 600;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+        }
+        .card h3 {
+            margin: 0 0 8px 0;
+            font-size: 0.95rem;
+            color: #52606d;
+        }
+        .card .value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #1f2933;
+        }
+        .chart {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+            margin-bottom: 24px;
+        }
+        .chart h3 {
+            margin-bottom: 12px;
+            font-size: 1.2rem;
+        }
+        pre {
+            background: #0b1d2c;
+            color: #e0f2ff;
+            padding: 18px;
+            border-radius: 10px;
+            overflow-x: auto;
+        }
+        .error {
+            background: #fdeade;
+            color: #b93815;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="title">
+            <img src="/static/DAACS_logo-small.png" alt="DAACS" height="40" />
+            <span>DAACS Analytics Dashboard</span>
+        </div>
+        <div id="status" class="status">Checking system...</div>
+    </header>
+
+    <div id="error" class="error" style="display: none"></div>
+
+    <section class="cards" id="overview-cards"></section>
+
+    <section class="chart">
+        <h3>Performance Distribution</h3>
+        <div id="distribution-chart"></div>
+        <div id="distribution-summary" class="grid" style="margin-top:20px;"></div>
+    </section>
+
+    <section class="chart">
+        <h3>Users (Top 100)</h3>
+        <div style="margin-bottom:12px; display:flex; gap:12px;">
+            <input id="user-search" type="text" placeholder="Filter users..." style="flex:1; padding:8px; border-radius:8px; border:1px solid #cbd2d9;" />
+            <span class="muted" id="user-count"></span>
+        </div>
+        <table class="data-table" id="user-list-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Roles</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </section>
+
+    <section class="chart" id="user-section">
+        <h3>User Analytics</h3>
+        <div style="margin-bottom:12px; display:flex; gap:12px;">
+            <select id="user-select" style="padding:8px; border-radius:8px; border:1px solid #cbd2d9; min-width:240px;"></select>
+            <button id="load-user" style="padding:8px 18px; border:none; border-radius:8px; background:#2563eb; color:white; cursor:pointer;">Load User</button>
+        </div>
+        <div id="user-summary-cards" class="cards" style="margin-bottom:16px;"></div>
+        <div id="user-details"></div>
+    </section>
+
+    <script>
+        const apiBase = window.location.origin;
+        const charts = new DAACSCharts();
+        let usersCache = [];
+        let filteredUsers = [];
+
+        function renderOverview(data) {
+            const cards = document.getElementById('overview-cards');
+            const metrics = data.system_overview || {};
+            cards.innerHTML = `
+                <div class="card">
+                    <h3>Total Users</h3>
+                    <div class="value">${formatNumber(metrics.total_users || 0)}</div>
+                </div>
+                <div class="card">
+                    <h3>Active Users</h3>
+                    <div class="value">${formatNumber(metrics.active_users || 0)}</div>
+                </div>
+                <div class="card">
+                    <h3>Total Assessments</h3>
+                    <div class="value">${formatNumber(metrics.total_assessments || 0)}</div>
+                </div>
+                <div class="card">
+                    <h3>Average Score</h3>
+                    <div class="value">${formatNumber(metrics.average_score || 0, 2)}</div>
+                </div>
+            `;
+        }
+
+        function updateStatus(text, healthy) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = text;
+            statusEl.style.background = healthy ? '#edf7ed' : '#fdeade';
+            statusEl.style.color = healthy ? '#2f8132' : '#b93815';
+        }
+
+        function showError(message, details) {
+            const el = document.getElementById('error');
+            el.style.display = 'block';
+            el.innerHTML = `<strong>Error:</strong> ${message}<br/><small>${details || ''}</small>`;
+        }
+
+        async function fetchJSON(url) {
+            const res = await fetch(url);
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(`${res.status} ${res.statusText}: ${msg}`);
+            }
+            return res.json();
+        }
+
+        function formatNumber(value, digits = 0) {
+            if (typeof value === 'number') {
+                return value.toLocaleString(undefined, { maximumFractionDigits: digits });
+            }
+            return value;
+        }
+
+        function renderPerformanceSummary(distribution) {
+            const container = document.getElementById('distribution-summary');
+            const ranges = (distribution && distribution.score_distribution) || [];
+            if (!ranges.length) {
+                container.innerHTML = '<div class="empty">No score data available.</div>';
+                return;
+            }
+            const total = ranges.reduce((sum, bucket) => sum + bucket.count, 0);
+            const topBucket = ranges.slice().sort((a, b) => b.count - a.count)[0];
+            container.innerHTML = `
+                <div class="card">
+                    <h3>Total Attempts</h3>
+                    <div class="value">${formatNumber(total)}</div>
+                    <p class="muted">Across all assessments</p>
+                </div>
+                <div class="card">
+                    <h3>Best Performing Band</h3>
+                    <div class="value">${topBucket.range}</div>
+                    <p class="muted">${formatNumber(topBucket.percentage, 1)}% of attempts</p>
+                </div>
+                <div class="card">
+                    <h3>Bucket Breakdown</h3>
+                    <ul class="list">
+                        ${ranges.map(bucket => `<li>${bucket.range}: <strong>${formatNumber(bucket.percentage, 1)}%</strong> (${formatNumber(bucket.count)})</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        function renderSystemDetails(data) {
+            const container = document.getElementById('system-details');
+            if (!container) return;
+            const overview = data.system_overview || {};
+            const peak = data.peak_usage_hours || [];
+            const pages = data.most_visited_pages || {};
+
+            const peakList = peak.map(hour => `<span class="pill">${hour}:00</span>`).join('') || '<em>No data</em>';
+
+            const pageRows = Object.entries(pages)
+                .map(([url, visits]) => `<tr><td>${url}</td><td>${formatNumber(visits)}</td></tr>`)
+                .join('') || '<tr><td colspan="2"><em>No data</em></td></tr>';
+
+            container.innerHTML = `
+                <div class="grid">
+                    <div>
+                        <h4>Activity Highlights</h4>
+                        <p><strong>Total Users:</strong> ${formatNumber(overview.total_users)}</p>
+                        <p><strong>Total Assessments:</strong> ${formatNumber(overview.total_assessments)}</p>
+                        <p><strong>Average Score:</strong> ${formatNumber(overview.average_score, 2)}</p>
+                        <p><strong>Activity Rate:</strong> ${formatNumber(overview.activity_rate, 1)}%</p>
+                    </div>
+                    <div>
+                        <h4>Peak Usage Hours</h4>
+                        <div class="pill-group">${peakList}</div>
+                    </div>
+                </div>
+                <h4 style="margin-top:20px;">Most Visited Pages</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr><th>URL</th><th>Visits</th></tr>
+                    </thead>
+                    <tbody>${pageRows}</tbody>
+                </table>
+            `;
+        }
+
+        function renderUserList(users) {
+            const tbody = document.querySelector('#user-list-table tbody');
+            document.getElementById('user-count').textContent = `${users.length} users`; 
+            tbody.innerHTML = users.map((user, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${user.name || user.username}</td>
+                    <td>${user.username}</td>
+                    <td>${(user.roles || []).join(', ') || 'n/a'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function populateUserSelect(users) {
+            const select = document.getElementById('user-select');
+            select.innerHTML = users
+                .map(user => `<option value="${user.id}">${user.name || user.username} (${user.username})</option>`)
+                .join('');
+        }
+
+        async function loadUsers() {
+            usersCache = await fetchJSON(`${apiBase}/api/users?limit=100`);
+            filteredUsers = [...usersCache];
+            populateUserSelect(filteredUsers);
+            renderUserList(filteredUsers);
+        }
+
+        function filterUsers(term) {
+            term = term.toLowerCase();
+            filteredUsers = usersCache.filter(user =>
+                (user.name || '').toLowerCase().includes(term) ||
+                (user.username || '').toLowerCase().includes(term)
+            );
+            populateUserSelect(filteredUsers);
+            renderUserList(filteredUsers);
+        }
+
+        async function loadUserAnalytics() {
+            const select = document.getElementById('user-select');
+            if (!select.value) {
+                document.getElementById('user-details').innerHTML = '<div class="empty">No users loaded.</div>';
+                document.getElementById('user-summary-cards').innerHTML = '';
+                return;
+            }
+            try {
+                const data = await fetchJSON(`${apiBase}/api/users/${select.value}/analytics`);
+                renderUserSummary(data);
+            } catch (err) {
+                renderUserSummary({ error: err.message });
+            }
+        }
+
+        document.getElementById('load-user').addEventListener('click', loadUserAnalytics);
+        document.getElementById('user-search').addEventListener('input', (e) => filterUsers(e.target.value));
+
+        function renderUserSummary(data) {
+            const cardsContainer = document.getElementById('user-summary-cards');
+            const detailsContainer = document.getElementById('user-details');
+            if (!cardsContainer || !detailsContainer) return;
+            if (!data || data.error) {
+                cardsContainer.innerHTML = '';
+                detailsContainer.innerHTML = `<div class="empty">${data?.error || 'No data for this user.'}</div>`;
+                return;
+            }
+
+            const summary = data.summary || {};
+            const assessments = data.assessments || [];
+
+            cardsContainer.innerHTML = `
+                <div class="card">
+                    <h3>Name</h3>
+                    <div class="value small">${data.user?.name || 'User'}</div>
+                    <p class="muted">${(data.user?.roles || []).join(', ') || 'n/a'}</p>
+                </div>
+                <div class="card">
+                    <h3>Total Assessments</h3>
+                    <div class="value">${formatNumber(summary.assessments || 0)}</div>
+                </div>
+                <div class="card">
+                    <h3>Average Score</h3>
+                    <div class="value">${formatNumber(summary.average_score || 0, 2)}</div>
+                </div>
+                <div class="card">
+                    <h3>Average Duration</h3>
+                    <div class="value">${formatNumber(summary.average_duration || 0, 1)}</div>
+                    <p class="muted">Minutes per assessment</p>
+                </div>
+            `;
+
+            const assessmentRows = assessments.length
+                ? assessments.map(ass => `
+                    <tr>
+                        <td>${ass.assessment_id}</td>
+                        <td>${ass.status}</td>
+                        <td>${formatNumber(_scoreValue(ass.overall_score), 1)}</td>
+                        <td>${formatNumber(ass.duration_minutes || 0, 1)}</td>
+                    </tr>
+                `).join('')
+                : '<tr><td colspan="4"><em>No assessments for this user.</em></td></tr>';
+
+            detailsContainer.innerHTML = `
+                <h4>Assessments</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Assessment ID</th>
+                            <th>Status</th>
+                            <th>Score</th>
+                            <th>Duration (min)</th>
+                        </tr>
+                    </thead>
+                    <tbody>${assessmentRows}</tbody>
+                </table>
+            `;
+        }
+
+        function _scoreValue(value) {
+            if (typeof value === 'number') return value;
+            if (typeof value === 'object' && value !== null && 'score' in value) return value.score;
+            return value;
+        }
+
+        async function init() {
+            try {
+                const health = await fetchJSON(`${apiBase}/api/health`);
+                updateStatus(health.status === 'healthy' ? 'System Healthy' : 'System Unhealthy', health.status === 'healthy');
+
+                const dashboard = await fetchJSON(`${apiBase}/api/system/dashboard`);
+                renderOverview(dashboard);
+                renderSystemDetails(dashboard);
+                charts.createScoreDistribution('distribution-chart', dashboard.performance_distribution || { score_distribution: [] });
+                renderPerformanceSummary(dashboard.performance_distribution);
+
+                await loadUsers();
+                await loadUserAnalytics();
+            } catch (err) {
+                console.error(err);
+                updateStatus('System Error', false);
+                showError(err.message, err.stack || '');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+    <style>
+        .grid {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .data-table th, .data-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e4ebf1;
+            text-align: left;
+        }
+        .data-table th {
+            background: #f1f5f9;
+        }
+        .pill-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .pill {
+            padding: 6px 12px;
+            background: #e0e8ff;
+            color: #1f3f95;
+            border-radius: 999px;
+            font-size: 0.85rem;
+        }
+        .empty {
+            background: #f1f5f9;
+            padding: 18px;
+            border-radius: 8px;
+            color: #52606d;
+        }
+    </style>
+</body>
+</html>

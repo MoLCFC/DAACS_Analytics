@@ -1,0 +1,1 @@
+{"_id":"6783e1444ee7e26c15a26a13","grants":["password","refresh_token"],"redirectUris":[],"id":"application","clientId":"application","clientSecret":"secret","__v":0}{"_id":"6783e1444ee7e26c15a26a14","grants":["password","refresh_token","urn:foo:bar:baz"],"redirectUris":[],"clientId":"newsaml","clientSecret":"","__v":0}
