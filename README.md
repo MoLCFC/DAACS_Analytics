@@ -132,6 +132,3 @@ SOFTWARE.
 
 ---
 
-👉 Drop `README.md` and `LICENSE` into the root of your repo.
-Do you also want me to add a **`CONTRIBUTING.md`** with guidelines for setup, PRs, and code style, so others can collaborate smoothly?
-
