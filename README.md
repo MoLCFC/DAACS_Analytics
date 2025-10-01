@@ -1,9 +1,3 @@
-Great — here’s a **complete professional package** for your repo:
-
----
-
-# 📄 README.md
-
 ````markdown
 # DAACS Analytics (Fresh Setup)
 
@@ -140,3 +134,4 @@ SOFTWARE.
 
 👉 Drop `README.md` and `LICENSE` into the root of your repo.
 Do you also want me to add a **`CONTRIBUTING.md`** with guidelines for setup, PRs, and code style, so others can collaborate smoothly?
+
