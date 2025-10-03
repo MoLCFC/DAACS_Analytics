@@ -218,6 +218,16 @@
             `;
         }
 
+    //function here for renderPerformanceSummary
+    function renderPerformanceSummary(distribution) {
+        const container = document.getElementById('distribution-summary');
+        const ranges = (distribution && distribution.score_distribution) || [];
+        if (!ranges.length) {
+            container.innerHTML = '<div class="empty">No score data available.</div>';
+            return;
+        }
+    }
+
         function renderSystemDetails(data) {
             const container = document.getElementById('system-details');
             if (!container) return;
