@@ -184,9 +184,6 @@ class AnalyticsEngine:
             "pages": pages,
         }
 
-    # ------------------------------------------------------------------
-    # Additional analytics datasets
-    # ------------------------------------------------------------------
     def users_created(self, start: Optional[str], end: Optional[str]) -> Dict[str, Any]:
         start_dt, end_dt = _parse_range(start, end)
         series = self.repo.users_created_over_time(start_dt, end_dt)
