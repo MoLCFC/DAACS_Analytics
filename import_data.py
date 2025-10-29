@@ -13,18 +13,23 @@ from pymongo import MongoClient
 def import_collection(client: MongoClient, database: str, collection: str, file_path: Path) -> int:
     db = client[database]
     col = db[collection]
-    col.delete_many({})
 
-    inserted = 0
+    upserts = 0
     with file_path.open("r", encoding="utf-8") as fh:
-        raw = fh.read().strip()
-        if not raw:
-            return 0
-        docs = json.loads(f"[{raw.replace('}{', '},{')}]")
-        if docs:
-            col.insert_many(docs)
-            inserted = len(docs)
-    return inserted
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                doc = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            _id = doc.get("_id")
+            if _id is None:
+                continue
+            col.replace_one({"_id": _id}, doc, upsert=True)
+            upserts += 1
+    return upserts
 
 
 def main() -> None:
@@ -38,9 +43,10 @@ def main() -> None:
     data_dir = Path(args.data_dir)
 
     collections = {
-        "users": data_dir / "users.json",
-        "user_assessments": data_dir / "user_assessments.json",
-        "event_containers": data_dir / "event_containers.json",
+        "users": data_dir / "users.jsonl",
+        "user_assessments": data_dir / "user_assessments.jsonl",
+        "event_containers": data_dir / "event_containers.jsonl",
+        "assessments": data_dir / "assessments.jsonl",
     }
 
     for name, path in collections.items():

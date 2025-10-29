@@ -167,6 +167,82 @@
             gap: 24px;
         }
         table.data-table td svg { display: inline-block; vertical-align: middle; }
+        .name-with-id { display: flex; align-items: center; gap: 6px; }
+        .name-with-id .info {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(148, 163, 184, 0.2);
+            color: rgba(148, 163, 184, 0.95);
+            font-size: 0.75rem;
+            cursor: help;
+        }
+        .autocomplete { position: relative; flex: 1; }
+        .autocomplete input { width: 100%; }
+        #user-suggestions {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% + 4px);
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 12px;
+            list-style: none;
+            margin: 0;
+            padding: 4px 0;
+            max-height: 240px;
+            overflow-y: auto;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.45);
+            z-index: 40;
+        }
+        #user-suggestions li {
+            padding: 10px 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        #user-suggestions li:hover,
+        #user-suggestions li.active {
+            background: rgba(99, 102, 241, 0.25);
+        }
+        #user-suggestions li .muted { font-size: 0.8rem; }
+        .traffic-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .traffic-cell span { color: var(--text-secondary); font-size: 0.85rem; }
+        .nav-legend { margin-top: 12px; color: var(--text-secondary); font-size: 0.85rem; }
+        .autocomplete { position: relative; flex: 1; }
+        .autocomplete input { width: 100%; }
+        #user-suggestions {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 100%;
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 8px;
+            list-style: none;
+            margin: 4px 0 0 0;
+            padding: 0;
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 30;
+        }
+        #user-suggestions li {
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+        #user-suggestions li:hover,
+        #user-suggestions li.active {
+            background: rgba(99, 102, 241, 0.25);
+        }
     </style>
 </head>
 <body>
@@ -183,6 +259,7 @@
 
         <section class="panel">
             <h3>Performance Distribution</h3>
+            <p class="muted" style="margin-top:-6px;margin-bottom:18px;max-width:720px;">This chart shows how assessment scores are distributed across banded score ranges. Taller bars indicate more attempts falling within that score band.</p>
             <div id="distribution-chart" style="margin-bottom:28px;"></div>
             <div id="distribution-summary" class="cards"></div>
         </section>
@@ -190,6 +267,7 @@
         <section class="dual-panel">
             <div class="panel">
                 <h3>User Growth</h3>
+                <p class="muted" style="margin-top:-6px;margin-bottom:18px;max-width:720px;">Bar chart of new users created per day within the selected date range.</p>
                 <div class="filters">
                     <input id="users-start" type="date" />
                     <input id="users-end" type="date" />
@@ -199,6 +277,7 @@
             </div>
             <div class="panel">
                 <h3>Assessments Activity</h3>
+                <p class="muted" style="margin-top:-6px;margin-bottom:18px;max-width:720px;">Daily counts of assessments started and completed in the selected date range.</p>
                 <div class="filters">
                     <input id="assess-start" type="date" />
                     <input id="assess-end" type="date" />
@@ -209,50 +288,60 @@
             </div>
         </section>
 
+        
+
         <section class="panel">
-            <h3>Answer Selection Frequency</h3>
+            <h3>Login Heatmap</h3>
+            <p class="muted" style="margin-top:-6px;margin-bottom:18px;max-width:720px;">Heatmap of user logins by weekday (rows) and month (columns) for a selected year.</p>
             <div class="filters">
-                <input id="answers-start" type="date" />
-                <input id="answers-end" type="date" />
-                <button id="answers-apply">Apply</button>
+                <input id="heatmap-year" type="number" min="2000" max="2100" />
+                <button id="heatmap-apply">Apply</button>
             </div>
-            <div id="answer-counts-chart"></div>
+            <div id="login-heatmap-chart"></div>
         </section>
 
         <section class="panel">
             <h3>Navigation Flow (Tangled Tree)</h3>
+            <p class="muted" style="margin-top:-6px;margin-bottom:18px;max-width:720px;">Timeline of key pages/events visited by the selected user for the chosen year.</p>
             <div class="filters">
                 <select id="nav-user"></select>
-                <input id="nav-start" type="date" />
-                <input id="nav-end" type="date" />
+                <input id="nav-year" type="number" min="2000" max="2100" />
                 <button id="nav-apply">Load</button>
             </div>
             <div id="navigation-chart"></div>
         </section>
 
         <section class="panel">
-            <h3>Users Overview</h3>
+            <h3>Daily Logins (Dot chart)</h3>
+            <p class="muted" style="margin-top:-6px;margin-bottom:18px;max-width:720px;">Dot-and-line chart of login counts for each day in the selected month and year.</p>
             <div class="filters">
-                <input id="user-search" type="text" placeholder="Search users..." />
-                <span class="muted" id="user-count"></span>
+                <input id="daily-year" type="number" min="2000" max="2100" />
+                <select id="daily-month">
+                    <option value="1">Jan</option>
+                    <option value="2">Feb</option>
+                    <option value="3">Mar</option>
+                    <option value="4">Apr</option>
+                    <option value="5">May</option>
+                    <option value="6">Jun</option>
+                    <option value="7">Jul</option>
+                    <option value="8">Aug</option>
+                    <option value="9">Sep</option>
+                    <option value="10">Oct</option>
+                    <option value="11">Nov</option>
+                    <option value="12">Dec</option>
+                </select>
+                <button id="daily-apply">Apply</button>
             </div>
-            <table class="data-table" id="user-list-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Name</th>
-                        <th>Username</th>
-                        <th>Roles</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+            <div id="daily-logins-chart"></div>
         </section>
-
         <section class="panel">
             <h3>User Analytics</h3>
+            <p class="muted" style="margin-top:-6px;margin-bottom:18px;max-width:720px;">Summary of the selected user: overall indicators and a table of their assessments.</p>
             <div class="filters">
-                <select id="user-select" style="flex:2;"></select>
+                <div class="autocomplete">
+                    <input id="user-search" type="text" placeholder="Type a name or username..." autocomplete="off" />
+                    <ul id="user-suggestions"></ul>
+                </div>
                 <button id="load-user">Show Details</button>
             </div>
             <section class="cards" id="user-summary-cards"></section>
@@ -262,10 +351,12 @@
         <section class="dual-panel">
             <div class="panel">
                 <h3>CAT/MC Timing — Item Groups</h3>
+                <p class="muted" style="margin-top:-6px;margin-bottom:18px;max-width:720px;">Average time spent (seconds) per item group across all users; limited to the 20 slowest groups.</p>
                 <div id="cat-groups-chart"></div>
             </div>
             <div class="panel">
                 <h3>CAT/MC Timing — Items</h3>
+                <p class="muted" style="margin-top:-6px;margin-bottom:18px;max-width:720px;">Average time spent (seconds) per question item; limited to the 20 slowest items.</p>
                 <div id="cat-items-chart"></div>
             </div>
         </section>
@@ -285,6 +376,7 @@
                 <tbody></tbody>
             </table>
         </section>
+        
     </div>
 
     <script>
@@ -410,58 +502,83 @@
             `;
         }
 
-        function renderUserList(users) {
-            const tbody = document.querySelector('#user-list-table tbody');
-            const countEl = document.getElementById('user-count');
-            if (!tbody) return;
-            if (countEl) countEl.textContent = `${users.length} users`;
-            tbody.innerHTML = users.map((user, index) => `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${user.name || user.username}</td>
-                    <td>${user.username}</td>
-                    <td>${(user.roles || []).join(', ') || 'n/a'}</td>
-                </tr>
-            `).join('');
-        }
-
-        function populateUserSelect(users) {
-            const select = document.getElementById('user-select');
+        function populateNavSelect(users) {
             const navSelect = document.getElementById('nav-user');
-            if (!select) return;
+            if (!navSelect) return;
             const options = users
                 .map(user => `<option value="${user.id}">${user.name || user.username} (${user.username})</option>`)
                 .join('');
-            select.innerHTML = options;
-            if (navSelect) navSelect.innerHTML = `<option value="">Select user...</option>` + options;
+            navSelect.innerHTML = `<option value="">Select user...</option>` + options;
         }
 
-        async function loadUsers() {
-            usersCache = await fetchJSON(`${apiBase}/api/users?limit=200`);
-            filteredUsers = [...usersCache];
-            populateUserSelect(filteredUsers);
-            renderUserList(filteredUsers);
+        function populateNavSelect(users) {
+            const navSelect = document.getElementById('nav-user');
+            if (!navSelect) return;
+            const options = users
+                .map(user => `<option value="${user.id}">${user.name || user.username} (${user.username})</option>`)
+                .join('');
+            navSelect.innerHTML = `<option value="">Select user...</option>` + options;
         }
 
-        function filterUsers(term) {
-            term = term.toLowerCase();
-            filteredUsers = usersCache.filter(user =>
-                (user.name || '').toLowerCase().includes(term) ||
-                (user.username || '').toLowerCase().includes(term)
-            );
-            populateUserSelect(filteredUsers);
-            renderUserList(filteredUsers);
+        async function loadUsers(initial = false) {
+            const limit = initial ? 200 : 50;
+            const data = await fetchJSON(`${apiBase}/api/users?limit=${limit}`);
+            if (initial) {
+                usersCache = [...data];
+            }
+            filteredUsers = [...data];
+            return data;
+        }
+
+        async function loadNavigableUsers() {
+            // Default 2020-01-01 to 2025-12-31
+            const data = await fetchJSON(`${apiBase}/api/users/with_navigation?start=2020-01-01&end=2025-12-31`);
+            const users = data.users || [];
+            populateNavSelect(users);
+            return users;
+        }
+
+        async function searchUsers(term) {
+            const trimmed = (term || '').trim();
+            if (!trimmed) {
+                filteredUsers = [...usersCache];
+                return filteredUsers.slice(0, 15);
+            }
+            try {
+                const results = await fetchJSON(`${apiBase}/api/users?limit=50&q=${encodeURIComponent(trimmed)}`);
+                filteredUsers = results;
+                return results.slice(0, 15);
+            } catch (err) {
+                console.error('User search failed', err);
+                return [];
+            }
+        }
+
+        function showSuggestions(users) {
+            const list = document.getElementById('user-suggestions');
+            if (!list) return;
+            if (!users.length) {
+                list.innerHTML = '<li class="muted">No matches</li>';
+                return;
+            }
+            list.innerHTML = users.map(user => `
+                <li data-id="${user.id}">
+                    <span>${user.name || user.username}</span>
+                    <span class="muted">${user.username}</span>
+                </li>
+            `).join('');
         }
 
         async function loadUserAnalytics() {
-            const select = document.getElementById('user-select');
-            if (!select || !select.value) {
+            const input = document.getElementById('user-search');
+            const selectedId = input.dataset.selectedUser;
+            if (!selectedId) {
                 document.getElementById('user-summary-cards').innerHTML = '';
                 document.getElementById('user-details').innerHTML = '<div class="empty">Select a user to view details.</div>';
                 return;
             }
             try {
-                const data = await fetchJSON(`${apiBase}/api/users/${select.value}/analytics`);
+                const data = await fetchJSON(`${apiBase}/api/users/${selectedId}/analytics`);
                 renderUserSummary(data);
             } catch (err) {
                 renderUserSummary({ error: err.message });
@@ -540,9 +657,30 @@
             charts.createBarChart('assessments-completed-chart', data.completed.map(d => ({ label: d.date, value: d.count })), { color: '#f97316', emptyMessage: 'No completions in range' });
         }
 
-        async function loadAnswerCounts(start, end) {
-            const data = await fetchJSON(`${apiBase}/api/assessments/answers${_query(start, end)}`);
-            charts.createCircularBarplot('answer-counts-chart', data.counts);
+        async function loadAnswerCountsByYear(year) {
+            const data = await fetchJSON(`${apiBase}/api/assessments/answers?year=${encodeURIComponent(year)}`);
+            charts.createMonthWeekdayHeatmap('answer-counts-chart', data.buckets);
+        }
+
+        async function loadLoginHeatmapByYear(year) {
+            const data = await fetchJSON(`${apiBase}/api/users/logins/heatmap?year=${encodeURIComponent(year)}`);
+            charts.createMonthWeekdayHeatmap('login-heatmap-chart', data.buckets);
+        }
+
+        async function loadDailyLoginsByYear(year) {
+            const data = await fetchJSON(`${apiBase}/api/users/logins/daily?year=${encodeURIComponent(year)}`);
+            charts.createDotChartDaily('daily-logins-chart', data.series);
+        }
+
+        async function loadDailyLoginsByMonth(year, month) {
+            try {
+                const y = parseInt(year, 10);
+                const m = parseInt(month, 10);
+                const data = await fetchJSON(`${apiBase}/api/users/logins/daily?year=${encodeURIComponent(y)}&month=${encodeURIComponent(m)}`);
+                charts.createDotChartDaily('daily-logins-chart', data.series);
+            } catch (err) {
+                showError(err.message, err.stack || '');
+            }
         }
 
         async function loadNavigationFlow(userId, start, end) {
@@ -556,8 +694,18 @@
 
         async function loadCatMetrics() {
             const data = await fetchJSON(`${apiBase}/api/assessments/timing`);
-            charts.renderPairsTable('cat-groups-chart', data.groups.map((row, idx) => [idx + 1, row.groupId, `${formatNumber(row.avgSeconds, 1)} sec`]), ['Rank', 'Group ID', 'Avg Seconds']);
-            charts.renderPairsTable('cat-items-chart', data.items.map((row, idx) => [idx + 1, row.questionId, `${formatNumber(row.avgSeconds, 1)} sec`]), ['Rank', 'Question ID', 'Avg Seconds']);
+            const groupRows = data.groups.map((row, idx) => [
+                idx + 1,
+                `<div class="name-with-id">${row.groupName}<span class="info" title="${row.groupId}">ℹ</span></div>`,
+                `${formatNumber(row.avgSeconds, 1)} sec`
+            ]);
+            const itemRows = data.items.map((row, idx) => [
+                idx + 1,
+                `<div class="name-with-id">${row.questionName}<span class="info" title="${row.questionId}">ℹ</span></div>`,
+                `${formatNumber(row.avgSeconds, 1)} sec`
+            ]);
+            charts.renderPairsTable('cat-groups-chart', groupRows, ['Rank', 'Group', 'Avg Seconds']);
+            charts.renderPairsTable('cat-items-chart', itemRows, ['Rank', 'Item', 'Avg Seconds']);
         }
 
         async function loadTopStudents() {
@@ -575,11 +723,13 @@
                     <td>${row.rank}</td>
                     <td>${row.name}</td>
                     <td>${row.username}</td>
-                    <td><div id="student-traffic-${row.rank}"></div></td>
+                    <td class="traffic-cell"><div id="student-traffic-${row.rank}"></div><span>${row.indicator.label}</span></td>
                 </tr>
             `).join('');
             rows.forEach(row => charts.renderTrafficLight(`student-traffic-${row.rank}`, row.indicator));
         }
+
+        // Ridgeline removed
 
         function _coerceValue(value) {
             if (typeof value === 'number') return value;
@@ -606,42 +756,131 @@
                 charts.createScoreDistribution('distribution-chart', dashboard.performance_distribution || { score_distribution: [] });
                 renderPerformanceSummary(dashboard.performance_distribution);
 
-                await loadUsers();
+                await loadUsers(true);
                 await Promise.all([
+                    loadNavigableUsers(),
                     loadAssessmentsActivity(),
                     loadUsersCreated(),
-                    loadAnswerCounts(),
+                    (() => { const y = new Date().getFullYear(); document.getElementById('heatmap-year').value = y; return loadLoginHeatmapByYear(y); })(),
+                    (() => { const now = new Date(); const y = now.getFullYear(); const m = now.getMonth()+1; document.getElementById('daily-year').value = y; document.getElementById('daily-month').value = String(m); return loadDailyLoginsByMonth(y, m); })(),
                     loadCatMetrics(),
                     loadUserAnalytics(),
                     loadTopStudents(),
                 ]);
+                const navYearEl = document.getElementById('nav-year');
+                if (navYearEl) navYearEl.value = new Date().getFullYear();
             } catch (err) {
                 showError(err.message, err.stack || '');
             }
 
-            document.getElementById('users-apply').addEventListener('click', () => loadUsersCreated(
-                document.getElementById('users-start').value,
-                document.getElementById('users-end').value
-            ));
+            document.getElementById('users-apply').addEventListener('click', () => {
+                const start = document.getElementById('users-start').value;
+                const end = document.getElementById('users-end').value;
+                loadUsersCreated(start, end);
+            });
 
-            document.getElementById('assess-apply').addEventListener('click', () => loadAssessmentsActivity(
-                document.getElementById('assess-start').value,
-                document.getElementById('assess-end').value
-            ));
+            document.getElementById('assess-apply').addEventListener('click', () => {
+                const start = document.getElementById('assess-start').value;
+                const end = document.getElementById('assess-end').value;
+                loadAssessmentsActivity(start, end);
+            });
 
-            document.getElementById('answers-apply').addEventListener('click', () => loadAnswerCounts(
-                document.getElementById('answers-start').value,
-                document.getElementById('answers-end').value
-            ));
+            // Answer frequency panel temporarily removed
 
-            document.getElementById('nav-apply').addEventListener('click', () => loadNavigationFlow(
-                document.getElementById('nav-user').value,
-                document.getElementById('nav-start').value,
-                document.getElementById('nav-end').value
-            ));
+            document.getElementById('nav-apply').addEventListener('click', () => {
+                const userId = document.getElementById('nav-user').value;
+                const year = document.getElementById('nav-year').value || new Date().getFullYear();
+                const start = `${year}-01-01`;
+                const end = `${year}-12-31`;
+                loadNavigationFlow(userId, start, end);
+            });
 
-            document.getElementById('user-search').addEventListener('input', (e) => filterUsers(e.target.value));
+            document.getElementById('heatmap-apply').addEventListener('click', () => {
+                const year = document.getElementById('heatmap-year').value || new Date().getFullYear();
+                loadLoginHeatmapByYear(year);
+            });
+
+            document.getElementById('daily-apply').addEventListener('click', async () => {
+                const btn = document.getElementById('daily-apply');
+                btn.disabled = true;
+                const year = parseInt(document.getElementById('daily-year').value || new Date().getFullYear(), 10);
+                const month = parseInt(document.getElementById('daily-month').value || (new Date().getMonth()+1), 10);
+                await loadDailyLoginsByMonth(year, month);
+                btn.disabled = false;
+            });
+
+            const userInput = document.getElementById('user-search');
+            const suggestions = document.getElementById('user-suggestions');
+
+            let suggestionIndex = -1;
+
+            async function handleSearchInput(term) {
+                const results = await searchUsers(term);
+                showSuggestions(results);
+                suggestionIndex = -1;
+                userInput.removeAttribute('data-selected-user');
+            }
+
+            userInput.addEventListener('input', (e) => handleSearchInput(e.target.value));
+
+            userInput.addEventListener('keydown', (e) => {
+                const items = suggestions.querySelectorAll('li[data-id]');
+                if (!items.length) return;
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    suggestionIndex = (suggestionIndex + 1) % items.length;
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    suggestionIndex = (suggestionIndex - 1 + items.length) % items.length;
+                } else if (e.key === 'Enter') {
+                    if (suggestionIndex >= 0) {
+                        e.preventDefault();
+                        items[suggestionIndex].click();
+                    }
+                    return;
+                } else {
+                    return;
+                }
+                items.forEach((item, idx) => item.classList.toggle('active', idx === suggestionIndex));
+            });
+
+            suggestions.addEventListener('click', (e) => {
+                const target = e.target.closest('li[data-id]');
+                if (!target) return;
+                const user = filteredUsers.find(u => u.id === target.dataset.id);
+                if (user) {
+                    userInput.value = `${user.name || user.username} (${user.username})`;
+                    userInput.dataset.selectedUser = user.id;
+                    suggestions.innerHTML = '';
+                    const navSelect = document.getElementById('nav-user');
+                    if (navSelect) {
+                        let option = Array.from(navSelect.options).find(opt => opt.value === user.id);
+                        if (!option) {
+                            option = document.createElement('option');
+                            option.value = user.id;
+                            option.textContent = `${user.name || user.username} (${user.username})`;
+                            navSelect.appendChild(option);
+                        }
+                        navSelect.value = user.id;
+                    }
+                    const year = document.getElementById('nav-year')?.value || new Date().getFullYear();
+                    const start = `${year}-01-01`;
+                    const end = `${year}-12-31`;
+                    loadNavigationFlow(user.id, start, end);
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!document.querySelector('.autocomplete').contains(e.target)) {
+                    suggestions.innerHTML = '';
+                }
+            });
+
             document.getElementById('load-user').addEventListener('click', loadUserAnalytics);
+
+            // Ridgeline controls removed
+
+            // Ridgeline autocomplete removed
         });
     </script>
 </body>

@@ -69,11 +69,35 @@ def create_app(repo: MongoRepository) -> Flask:
     @app.route("/api/assessments/answers")
     def answer_counts() -> Any:
         try:
+            year = request.args.get("year")
+            if year:
+                return jsonify(engine.answer_counts_year(int(year)))
             start = request.args.get("start")
             end = request.args.get("end")
             return jsonify(engine.answer_counts(start, end))
         except Exception as exc:
             logging.exception("answer counts failed")
+            return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+
+    @app.route("/api/assessments/ridgeline")
+    def assessments_ridgeline() -> Any:
+        try:
+            assessment_id = request.args.get("assessmentId")
+            category = request.args.get("category")
+            return jsonify(engine.ridgeline_answer_options(assessment_id, category))
+        except Exception as exc:
+            logging.exception("ridgeline failed")
+            return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+
+    @app.route("/api/assessments/list")
+    def assessments_list() -> Any:
+        try:
+            q = request.args.get("q")
+            limit = int(request.args.get("limit", 25))
+            category = request.args.get("category")
+            return jsonify(engine.list_assessments(q, limit, category))
+        except Exception as exc:
+            logging.exception("assessments list failed")
             return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
 
     @app.route("/api/assessments/timing")
@@ -104,6 +128,41 @@ def create_app(repo: MongoRepository) -> Flask:
             logging.exception("users created failed")
             return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
 
+    @app.route("/api/users/with_navigation")
+    def users_with_navigation() -> Any:
+        try:
+            start = request.args.get("start")
+            end = request.args.get("end")
+            return jsonify(engine.users_with_navigation(start, end))
+        except Exception as exc:
+            logging.exception("users with navigation failed")
+            return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+
+    @app.route("/api/users/logins/heatmap")
+    def users_logins_heatmap() -> Any:
+        try:
+            year = request.args.get("year")
+            if year:
+                return jsonify(engine.logins_heatmap_year(int(year)))
+            start = request.args.get("start")
+            end = request.args.get("end")
+            return jsonify(engine.logins_heatmap(start, end))
+        except Exception as exc:
+            logging.exception("logins heatmap failed")
+            return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+
+    @app.route("/api/users/logins/daily")
+    def users_logins_daily() -> Any:
+        try:
+            year = int(request.args.get("year", datetime.now().year))
+            month = request.args.get("month")
+            if month:
+                return jsonify(engine.logins_daily_month(year, int(month)))
+            return jsonify(engine.logins_daily_year(year))
+        except Exception as exc:
+            logging.exception("logins daily failed")
+            return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+
     @app.route("/api/users/top")
     def top_students() -> Any:
         try:
@@ -117,7 +176,8 @@ def create_app(repo: MongoRepository) -> Flask:
     def list_users() -> Any:
         try:
             limit = int(request.args.get("limit", 20))
-            users = repo.fetch_users(limit)
+            query = request.args.get("q")
+            users = repo.fetch_users(limit=limit, query=query)
             return jsonify([
                 {
                     "id": user.id,

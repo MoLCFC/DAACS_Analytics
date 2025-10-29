@@ -1,1 +1,7 @@
-{"_id":"precalculus","label":"PreCalculus","assessmentCategory":"MATHEMATICS"}{"_id":"writing","label":"writing-group","assessmentCategory":"WRITING"}{"_id":"mathematics","label":"mathematics-group","assessmentCategory":"MATHEMATICS"}{"_id":"college_skills","label":"college-skills-group","assessmentCategory":"COLLEGE_SKILLS"}{"_id":"reading","label":"reading-group","assessmentCategory":"READING"}
+[
+  {"_id":"precalculus","label":"PreCalculus","assessmentCategory":"MATHEMATICS"},
+  {"_id":"writing","label":"writing-group","assessmentCategory":"WRITING"},
+  {"_id":"mathematics","label":"mathematics-group","assessmentCategory":"MATHEMATICS"},
+  {"_id":"college_skills","label":"college-skills-group","assessmentCategory":"COLLEGE_SKILLS"},
+  {"_id":"reading","label":"reading-group","assessmentCategory":"READING"}
+]

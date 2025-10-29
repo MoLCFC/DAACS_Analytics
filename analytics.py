@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from statistics import mean
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 
 from database import MongoRepository
 
@@ -62,6 +62,18 @@ def _parse_range(start: Optional[str], end: Optional[str], days: int = DEFAULT_R
         start_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
     else:
         start_dt = end_dt - timedelta(days=days)
+
+    if start_dt.tzinfo is None:
+        start_dt = start_dt.replace(tzinfo=timezone.utc)
+    else:
+        start_dt = start_dt.astimezone(timezone.utc)
+    if end_dt.tzinfo is None:
+        end_dt = end_dt.replace(tzinfo=timezone.utc)
+    else:
+        end_dt = end_dt.astimezone(timezone.utc)
+
+    start_dt = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_dt = end_dt.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
     return start_dt, end_dt
 
 
@@ -191,10 +203,43 @@ class AnalyticsEngine:
         counts = self.repo.answer_choice_counts(start_dt, end_dt)
         return {"counts": counts, "start": start_dt.isoformat(), "end": end_dt.isoformat()}
 
+    def answer_counts_year(self, year: int) -> Dict[str, Any]:
+        buckets = self.repo.answer_choice_counts_year(year)
+        return {"buckets": buckets, "year": year}
+
+    def ridgeline_answer_options(self, assessment_id: Optional[str], category: Optional[str] = None) -> Dict[str, Any]:
+        series = self.repo.answer_option_counts_per_question(assessment_id, category)
+        # Order Likert-style if present
+        order = ["Almost Never", "Not Very Often", "Somewhat Often", "Pretty Often", "Almost Always"]
+        labels = sorted(series.keys(), key=lambda l: (order.index(l) if l in order else len(order) + hash(l)%1000))
+        result: Dict[str, Any] = {"labels": labels, "series": {label: series[label] for label in labels}}
+        if assessment_id:
+            per_question = self.repo.answer_counts_by_question(assessment_id)
+            question_names = self.repo._question_text_map(assessment_id)
+            result["perQuestion"] = per_question
+            result["questions"] = [{"id": qid, "text": question_names.get(qid, qid)} for qid in per_question.keys()]
+        return result
+
+    def list_assessments(self, q: Optional[str], limit: int = 25, category: Optional[str] = None) -> Dict[str, Any]:
+        items = self.repo.list_assessments(q, limit, category)
+        return {"assessments": items}
+
     def navigation_flow(self, user_id: str, start: Optional[str], end: Optional[str]) -> Dict[str, Any]:
         start_dt, end_dt = _parse_range(start, end)
         events = self.repo.navigation_events(user_id, start_dt, end_dt)
         return {"events": events, "start": start_dt.isoformat(), "end": end_dt.isoformat()}
+
+    def users_with_navigation(self, start: Optional[str], end: Optional[str]) -> Dict[str, Any]:
+        start_dt, end_dt = _parse_range(start, end)
+        users = self.repo.users_with_navigation(start_dt, end_dt)
+        return {
+            "users": [
+                {"id": u.id, "name": u.full_name, "username": u.username, "roles": u.roles}
+                for u in users
+            ],
+            "start": start_dt.isoformat(),
+            "end": end_dt.isoformat(),
+        }
 
     def assessment_timings(self) -> Dict[str, Any]:
         metrics = self.repo.assessment_time_metrics()
@@ -216,3 +261,20 @@ class AnalyticsEngine:
                 "indicator": indicator,
             })
         return {"students": leaderboard}
+
+    def logins_heatmap(self, start: Optional[str], end: Optional[str]) -> Dict[str, Any]:
+        start_dt, end_dt = _parse_range(start, end)
+        buckets = self.repo.login_heatmap(start_dt, end_dt)
+        return {"buckets": buckets, "start": start_dt.isoformat(), "end": end_dt.isoformat()}
+
+    def logins_heatmap_year(self, year: int) -> Dict[str, Any]:
+        buckets = self.repo.login_heatmap_year(year)
+        return {"buckets": buckets, "year": year}
+
+    def logins_daily_year(self, year: int) -> Dict[str, Any]:
+        series = self.repo.login_daily_counts_year(year)
+        return {"series": series, "year": year}
+
+    def logins_daily_month(self, year: int, month: int) -> Dict[str, Any]:
+        series = self.repo.login_daily_counts_month(year, month)
+        return {"series": series, "year": year, "month": month}
