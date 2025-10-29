@@ -1,97 +1,73 @@
 # DAACS Analytics (Fresh Setup)
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)  
-![Flask](https://img.shields.io/badge/Flask-2.x-green.svg)  
-![MongoDB](https://img.shields.io/badge/MongoDB-4.4%2B-brightgreen.svg)  
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)  
+This project provides a comprehensive analytics service for the Diagnostic Assessment and Achievement of College Skills (DAACS) dataset. It ingests the provided MongoDB export and exposes summary metrics and visualisations via a Flask API and a professional dashboard.
 
-This project provides a minimal analytics service for the **Diagnostic Assessment and Achievement of College Skills (DAACS)** dataset.  
-It ingests the provided MongoDB export and exposes summary metrics and visualisations via a Flask API and a single-page dashboard.
+## Features
 
----
+- System overview with traffic-light grading
+- Score distribution histogram with key stats
+- User growth timeline (bar chart)
+- Assessment activity (started/completed) by date range
+- Answer choice frequency (circular bar plot)
+- Navigation flow explorer per user (ready for tangled tree integration)
+- CAT/MC timing metrics for item groups and items
+- User summary cards with assessment details
+- Filterable list of top 200 users
 
-## 🚀 Prerequisites
+## Prerequisites
 
 - Python 3.10+
-- MongoDB 4.4+ running locally or accessible via URI
-- The DAACS JSON dump in the `analytic_database/` folder:
-  - `users.json`
-  - `user_assessments.json`
-  - `event_containers.json`
+- MongoDB 4.4+ running locally or via connection string
+- DAACS JSON dump in `analytic_database/` (ignored by Git)
 
----
+## Installation
 
-## ⚙️ Installation
+```bash
+# optional but recommended
+python -m venv .venv
+.venv\Scripts\activate
 
-1. **Create and activate a virtual environment** (recommended):
-   ```bash
-   python -m venv venv
-   source venv/bin/activate   # Linux/macOS
-   venv\Scripts\activate      # Windows
-   ```
+pip install -r requirements.txt
+python import_data.py --connection-string mongodb://localhost:27017/ --database daacs_analytics
+python web_app.py --connection-string mongodb://localhost:27017/ --database daacs_analytics
+```
 
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Dashboard Overview
 
-3. **Import the dataset into MongoDB**:
-   ```bash
-   python import_data.py --connection-string mongodb://localhost:27017/ --database daacs_analytics
-   ```
+- `http://127.0.0.1:5000/` – main dashboard
+- `http://127.0.0.1:5000/api/system/dashboard` – system metrics JSON
+- Additional APIs:
+  - `/api/users?limit=100`
+  - `/api/users/<id>/analytics`
+  - `/api/users/<id>/navigation?start=YYYY-MM-DD&end=YYYY-MM-DD`
+  - `/api/users/created?start=YYYY-MM-DD&end=YYYY-MM-DD`
+  - `/api/assessments/activity?start=...&end=...`
+  - `/api/assessments/answers?start=...&end=...`
+  - `/api/assessments/timing`
 
-4. **Run the analytics server**:
-   ```bash
-   python web_app.py --connection-string mongodb://localhost:27017/ --database daacs_analytics
-   ```
-
----
-
-## 📊 Usage
-
-- Health check: [http://127.0.0.1:5000/api/health](http://127.0.0.1:5000/api/health)  
-- System dashboard API: [http://127.0.0.1:5000/api/system/dashboard](http://127.0.0.1:5000/api/system/dashboard)  
-- User analytics: `http://127.0.0.1:5000/api/users/<user_id>/analytics`  
-- Dashboard UI: [http://127.0.0.1:5000/](http://127.0.0.1:5000/)  
-
----
-
-## 📂 Project Structure
+## Project Structure
 
 ```
 DAACS/
-├── analytic_database/
-│   ├── users.json
-│   ├── user_assessments.json
-│   └── event_containers.json
-├── analytics.py          # Analytics engine (system metrics, user summaries)
-├── database.py           # MongoDB repository helpers
-├── import_data.py        # JSON import script
-├── models.py             # Core dataclasses
-├── requirements.txt      # Dependencies
+├── analytic_database/         # JSON dumps (ignored by Git)
+├── analytics.py               # Analytics engine
+├── database.py                # MongoDB repository
+├── import_data.py             # Import script
+├── models.py                  # Dataclasses
+├── requirements.txt           # Dependencies
 ├── static/
-│   ├── charts.js         # D3 utilities
-│   └── dashboard.html    # Minimal dashboard page
-└── web_app.py            # Flask application
+│   ├── charts.js              # D3 helpers + custom components
+│   └── dashboard.html         # Reimagined dashboard UI
+└── web_app.py                 # Flask server with REST endpoints
 ```
 
----
+## Troubleshooting
 
-## 🛠 Troubleshooting
+- **No data**: confirm MongoDB is running and import script succeeded.
+- **API 500 errors**: check console output; tracebacks include details.
+- **Large files warning**: data JSON is excluded from Git; regenerate via import script.
 
-- **No data in dashboard**: ensure MongoDB is running and `import_data.py` succeeded.  
-- **API errors**: check the Flask console output; errors include tracebacks.  
-- **Wrong database**: pass `--connection-string` and `--database` explicitly when launching `web_app.py`.  
+## Notes
 
----
-
-## 🔮 Next Steps
-
-The code is intentionally light.  
-Extend `AnalyticsEngine` with additional statistics, or connect the front-end to external charting libraries (e.g., Plotly, D3, Chart.js) as needed.  
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.  
+- Navigation view currently shows placeholder text; plug in tangled-tree code or observable embed to complete the visualization.
+- Date-range inputs default to the last 30 days when empty.

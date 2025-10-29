@@ -56,6 +56,63 @@ def create_app(repo: MongoRepository) -> Flask:
             logging.exception("event summary failed")
             return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
 
+    @app.route("/api/assessments/activity")
+    def assessments_activity() -> Any:
+        try:
+            start = request.args.get("start")
+            end = request.args.get("end")
+            return jsonify(engine.assessments_activity(start, end))
+        except Exception as exc:
+            logging.exception("assessments activity failed")
+            return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+
+    @app.route("/api/assessments/answers")
+    def answer_counts() -> Any:
+        try:
+            start = request.args.get("start")
+            end = request.args.get("end")
+            return jsonify(engine.answer_counts(start, end))
+        except Exception as exc:
+            logging.exception("answer counts failed")
+            return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+
+    @app.route("/api/assessments/timing")
+    def assessment_timing() -> Any:
+        try:
+            return jsonify(engine.assessment_timings())
+        except Exception as exc:
+            logging.exception("assessment timing failed")
+            return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+
+    @app.route("/api/users/<user_id>/navigation")
+    def user_navigation(user_id: str) -> Any:
+        try:
+            start = request.args.get("start")
+            end = request.args.get("end")
+            return jsonify(engine.navigation_flow(user_id, start, end))
+        except Exception as exc:
+            logging.exception("navigation flow failed")
+            return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+
+    @app.route("/api/users/created")
+    def users_created() -> Any:
+        try:
+            start = request.args.get("start")
+            end = request.args.get("end")
+            return jsonify(engine.users_created(start, end))
+        except Exception as exc:
+            logging.exception("users created failed")
+            return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+
+    @app.route("/api/users/top")
+    def top_students() -> Any:
+        try:
+            limit = int(request.args.get("limit", 100))
+            return jsonify(engine.top_students(limit))
+        except Exception as exc:
+            logging.exception("top students failed")
+            return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+
     @app.route("/api/users")
     def list_users() -> Any:
         try:

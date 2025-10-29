@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 from statistics import mean
-from typing import Dict, Any, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Dict, Any, Optional, Tuple
 
 from database import MongoRepository
 
@@ -13,6 +14,8 @@ SCORE_MAP = {
     "MEDIUM": 60.0,
     "HIGH": 85.0,
 }
+
+DEFAULT_RANGE_DAYS = 30
 
 
 def _coerce_score(value: Any) -> Optional[float]:
@@ -39,6 +42,27 @@ def _safe_round(value: Any, digits: int = 0) -> float:
         return round(float(numeric), digits)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _score_indicator(score: Optional[float]) -> Dict[str, Any]:
+    numeric = _coerce_score(score) or 0.0
+    if numeric >= 80:
+        return {"dots": ["green", "green", "green"], "label": "Excellent"}
+    if numeric >= 50:
+        return {"dots": ["yellow", "yellow", "gray"], "label": "Needs Attention"}
+    return {"dots": ["red", "gray", "gray"], "label": "At Risk"}
+
+
+def _parse_range(start: Optional[str], end: Optional[str], days: int = DEFAULT_RANGE_DAYS) -> Tuple[datetime, datetime]:
+    if end:
+        end_dt = datetime.fromisoformat(end.replace("Z", "+00:00"))
+    else:
+        end_dt = datetime.now(timezone.utc)
+    if start:
+        start_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
+    else:
+        start_dt = end_dt - timedelta(days=days)
+    return start_dt, end_dt
 
 
 class AnalyticsEngine:
@@ -72,14 +96,17 @@ class AnalyticsEngine:
             for bucket, count in sorted(histogram.items())
         ]
 
+        overview = {
+            "total_users": metrics.total_users,
+            "active_users": metrics.active_users,
+            "total_assessments": metrics.total_assessments,
+            "average_score": _safe_round(metrics.average_score, 2),
+            "activity_rate": _safe_round((metrics.active_users / metrics.total_users) * 100 if metrics.total_users else 0, 1),
+            "score_indicator": _score_indicator(metrics.average_score),
+        }
+
         return {
-            "system_overview": {
-                "total_users": metrics.total_users,
-                "active_users": metrics.active_users,
-                "total_assessments": metrics.total_assessments,
-                "average_score": _safe_round(metrics.average_score, 2),
-                "activity_rate": _safe_round((metrics.active_users / metrics.total_users) * 100 if metrics.total_users else 0, 1),
-            },
+            "system_overview": overview,
             "performance_distribution": {"score_distribution": score_ranges},
             "peak_usage_hours": metrics.peak_hours,
             "most_visited_pages": metrics.top_pages,
@@ -103,18 +130,22 @@ class AnalyticsEngine:
                 scores.append(score)
         durations = [ass.duration_minutes for ass in assessments if ass.duration_minutes]
 
+        average_score = mean(scores) if scores else 0
+        summary = {
+            "assessments": len(assessments),
+            "average_score": _safe_round(average_score, 2),
+            "average_duration": _safe_round(mean(durations), 1) if durations else 0,
+            "events": events_summary.get("events", 0),
+            "score_indicator": _score_indicator(average_score),
+        }
+
         return {
             "user": {
                 "id": user.id,
                 "name": user.full_name,
                 "roles": user.roles,
             },
-            "summary": {
-                "assessments": len(assessments),
-                "average_score": _safe_round(mean(scores), 2) if scores else 0,
-                "average_duration": _safe_round(mean(durations), 1) if durations else 0,
-                "events": events_summary.get("events", 0),
-            },
+            "summary": summary,
             "assessments": [
                 {
                     "assessment_id": ass.assessment_id,
@@ -140,3 +171,48 @@ class AnalyticsEngine:
             "logins": logins,
             "pages": pages,
         }
+
+    # ------------------------------------------------------------------
+    # Additional analytics datasets
+    # ------------------------------------------------------------------
+    def users_created(self, start: Optional[str], end: Optional[str]) -> Dict[str, Any]:
+        start_dt, end_dt = _parse_range(start, end)
+        series = self.repo.users_created_over_time(start_dt, end_dt)
+        return {"series": series, "start": start_dt.isoformat(), "end": end_dt.isoformat()}
+
+    def assessments_activity(self, start: Optional[str], end: Optional[str]) -> Dict[str, Any]:
+        start_dt, end_dt = _parse_range(start, end)
+        data = self.repo.user_assessment_activity(start_dt, end_dt)
+        data.update({"start": start_dt.isoformat(), "end": end_dt.isoformat()})
+        return data
+
+    def answer_counts(self, start: Optional[str], end: Optional[str]) -> Dict[str, Any]:
+        start_dt, end_dt = _parse_range(start, end)
+        counts = self.repo.answer_choice_counts(start_dt, end_dt)
+        return {"counts": counts, "start": start_dt.isoformat(), "end": end_dt.isoformat()}
+
+    def navigation_flow(self, user_id: str, start: Optional[str], end: Optional[str]) -> Dict[str, Any]:
+        start_dt, end_dt = _parse_range(start, end)
+        events = self.repo.navigation_events(user_id, start_dt, end_dt)
+        return {"events": events, "start": start_dt.isoformat(), "end": end_dt.isoformat()}
+
+    def assessment_timings(self) -> Dict[str, Any]:
+        metrics = self.repo.assessment_time_metrics()
+        return metrics
+
+    def average_question_time(self) -> Dict[str, Any]:
+        metrics = self.repo.assessment_time_metrics()
+        return metrics
+
+    def top_students(self, limit: int = 100) -> Dict[str, Any]:
+        leaderboard = []
+        for entry in self.repo.top_users_by_average_score(limit):
+            indicator = _score_indicator(entry.get("average"))
+            leaderboard.append({
+                "id": entry["id"],
+                "name": entry["name"],
+                "username": entry["username"],
+                "roles": entry["roles"],
+                "indicator": indicator,
+            })
+        return {"students": leaderboard}
